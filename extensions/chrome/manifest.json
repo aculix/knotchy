@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Open in Knotchy",
+  "description": "Adds \"Open in Knotchy\" to the right-click menu of links: opens them in Knotchy's disposable, isolated browser.",
+  "version": "1.0.0",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["contextMenus"],
+  "background": { "service_worker": "background.js" }
+}

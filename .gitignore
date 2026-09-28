@@ -1,0 +1,16 @@
+.DS_Store
+
+.build/
+build/
+DerivedData/
+xcuserdata/
+.swiftpm/
+*.app
+
+snapshots/
+
+a.out
+*.o
+*.dSYM/
+__pycache__/
+*.pyc

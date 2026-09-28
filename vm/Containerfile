@@ -1,0 +1,52 @@
+# The only definition of the protocol version, so preflight and HELLO agree.
+# 2: honours proxy and VPN routes (older images would browse directly); 3: PAGE_URL.
+ARG KNOTCHY_PROTOCOL=3
+
+FROM debian:trixie-slim AS build
+ARG KNOTCHY_PROTOCOL
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      gcc libc6-dev pkg-config libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+# Only developer builds use -Werror, so a new compiler warning can't break setup.
+ARG WERROR=
+COPY knotchy-agent.c progress-gate.c progress-gate.h /src/
+COPY tests/ /src/tests/
+RUN gcc -O2 -Wall $WERROR -I/src -o /tmp/test-progress-gate \
+      /src/tests/test-progress-gate.c /src/progress-gate.c -lm && \
+    /tmp/test-progress-gate
+RUN gcc -O2 -Wall $WERROR -DPROTOCOL_VERSION=$KNOTCHY_PROTOCOL -I/src -o /knotchy-agent /src/knotchy-agent.c /src/progress-gate.c \
+      $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0 glib-2.0) -lm && \
+    strip /knotchy-agent
+
+FROM debian:trixie-slim
+ARG KNOTCHY_PROTOCOL
+LABEL aculix.knotchy.protocol="$KNOTCHY_PROTOCOL"
+# A new APT_REFRESH (the build date) re-runs apt, so rebuilds get security updates.
+ARG APT_REFRESH=unset
+# Without autoaudiosink (plugins-good) any page with media crashes the web process.
+# Plugins that can't work in the VM are deleted to shrink the attack surface;
+# plain rm fails the build unless each name matches exactly one file.
+RUN echo "apt refresh: $APT_REFRESH" && apt-get update && apt-get -y upgrade && \
+    apt-get install -y --no-install-recommends \
+      gstreamer1.0-wpe gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly \
+      gstreamer1.0-libav gstreamer1.0-plugins-bad \
+      libgles2 glib-networking ca-certificates nftables \
+      wireguard-go wireguard-tools iproute2 \
+      fonts-dejavu-core fonts-liberation2 fonts-inter-variable fonts-noto-core fonts-noto-color-emoji && \
+    rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/locale && \
+    for p in video4linux2 rtsp rtp rtpmanager udp jack oss4 ossaudio ximagesrc shout2 1394 pulseaudio; do \
+      f="$(dpkg -L gstreamer1.0-plugins-good | grep "/libgst$p\.so\$")" && rm "$f" || \
+        { echo "prune: libgst$p.so not found in gstreamer1.0-plugins-good" >&2; exit 1; }; \
+    done && \
+    useradd --create-home --uid 1000 knotchy
+COPY --from=build /knotchy-agent /usr/local/bin/knotchy-agent
+COPY --chmod=755 knotchy-init /usr/local/bin/knotchy-init
+COPY --chmod=644 fonts.conf /etc/fonts/local.conf
+
+# WebKit's bubblewrap sandbox needs the non-root user knotchy-init switches to.
+WORKDIR /home/knotchy
+ENTRYPOINT ["/usr/local/bin/knotchy-init"]
+
+# Last, so the per-build timestamp doesn't invalidate cached layers.
+ARG BUILD_DATE=unknown
+LABEL aculix.knotchy.built="$BUILD_DATE"

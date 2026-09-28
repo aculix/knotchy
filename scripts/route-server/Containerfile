@@ -1,0 +1,8 @@
+# Test fixture for scripts/test-routes.sh: HTTP and SOCKS5 proxies and a WireGuard server.
+FROM debian:trixie-slim
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      tinyproxy microsocks wireguard-go wireguard-tools iproute2 nftables && \
+    rm -rf /var/lib/apt/lists/*
+COPY --chmod=755 serve.sh /usr/local/bin/serve.sh
+ENTRYPOINT ["/usr/local/bin/serve.sh"]
