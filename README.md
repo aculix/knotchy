@@ -4,7 +4,7 @@
 
 Open suspicious links in a throwaway browser that lives in your Mac's notch.
 
-> **Status:** 0.1.0, the first release. It works, but it's young. If something breaks, please open an issue.
+> **Status:** 0.1.1. It works, but it's young. If something breaks, please open an issue.
 
 Some links you'd rather not open. A shortened link in a text from a number you don't know. An "invoice" from a
 company you've never dealt with. Knotchy opens them somewhere else: a small Linux virtual machine that exists for
@@ -22,7 +22,7 @@ The VM can reach the internet. It can't reach your Mac or anything else on your 
 
 ## Install
 
-1. Download `Knotchy-0.1.0.dmg` from [Releases](https://github.com/aculix/knotchy/releases/latest). It's signed
+1. Download `Knotchy-0.1.1.dmg` from [Releases](https://github.com/aculix/knotchy/releases/latest). It's signed
    and notarized, so macOS opens it without warnings.
 2. Open the disk image and drag Knotchy to Applications.
 3. Open Knotchy. A knot appears in the menu bar and the setup window opens.
