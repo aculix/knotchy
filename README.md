@@ -17,7 +17,7 @@ The VM can reach the internet. It can't reach your Mac or anything else on your 
 
 - A Mac with Apple silicon
 - macOS 26 or later
-- About 3 GB of free space for the first setup
+- About 10 GB of free space for the first setup. Around 5 GB stays in use once it's done.
 - An administrator password, once, for Apple's installer
 
 ## Install
@@ -31,7 +31,7 @@ The VM can reach the internet. It can't reach your Mac or anything else on your 
    - It downloads Apple's [`container`](https://github.com/apple/container) runtime (version 1.4.1, 118 MB),
      checks it against the SHA-256 built into Knotchy, and opens it in Apple's Installer. Click through Installer
      and enter your password there. Knotchy never asks for administrator rights itself.
-   - It starts the runtime, which downloads a Linux kernel the first time.
+   - It starts the runtime and downloads its Linux kernel, about 700 MB.
    - It builds the browser VM image on your Mac. That takes about 3 minutes and downloads about 225 MB.
 5. When every row has a green tick, click **Done**.
 
@@ -88,7 +88,8 @@ Proxies on your Mac or your local network are refused, because a page could reac
 Passwords and VPN keys are kept in your keychain.
 
 VM shows the runtime version and when the image was built, and has **Rebuild Now**. Rebuilding picks up WebKit
-security fixes, and Knotchy suggests it once the image is two weeks old.
+security fixes, and Knotchy suggests it once the image is two weeks old. After a build, Knotchy deletes the image it
+replaced and the builder VM, unless that builder was already running before the build.
 
 ## How it works
 

@@ -557,7 +557,7 @@ public final class SessionController {
         }
     }
 
-    /// No VM exists yet, so there is nothing to destroy. Starting the service needs no password, so it just happens.
+    /// No VM exists yet, so there is nothing to destroy. Starting the service or fetching its kernel needs no password, so it just happens.
     private func needsSetup(_ issue: SetupIssue, for session: Session) {
         session.retired = true
         liveIDs.remove(session.id)
@@ -752,11 +752,12 @@ public final class SessionController {
         if mode == .link || pendingURL != nil { transition(to: card) } else { enterIdle() }
     }
 
+    /// A check only starts the service: the kernel is a 700 MB download, so it waits for Set Up.
     private static func fixes(_ issue: SetupIssue, in mode: RunMode) -> Bool {
         switch (mode, issue) {
         case (.window(continuing: true), .serviceStopped), (.window(continuing: true), .kernelMissing),
              (.window(continuing: true), .imageMissing), (.window(continuing: true), .imageOutdated),
-             (.check, .serviceStopped), (.check, .kernelMissing):
+             (.check, .serviceStopped):
             true
         default:
             false
@@ -767,7 +768,6 @@ public final class SessionController {
     private static func sameFix(_ a: SetupIssue, _ b: SetupIssue) -> Bool {
         func group(_ issue: SetupIssue) -> Int? {
             switch issue {
-            case .serviceStopped, .kernelMissing: 0
             case .imageMissing, .imageOutdated, .imageStale: 1
             default: nil
             }
@@ -925,6 +925,9 @@ public final class SessionController {
         case StreamError.protocolViolation(let detail): "The VM sent a malformed message: \(detail)."
         case StreamError.timedOut: "The VM didn't answer in time."
         case StreamError.refused: "Couldn't connect to the VM."
+        case CLIRunner.Failure.timedOut: "The container runtime stopped responding. Try again."
+        case CLIRunner.Failure.notInstalled: "Apple's container runtime isn't installed."
+        case CLIRunner.Failure.launchFailed(let detail): "Couldn't run the container runtime: \(detail)"
         default: String(describing: error)
         }
     }

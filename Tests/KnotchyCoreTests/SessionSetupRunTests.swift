@@ -13,6 +13,22 @@ struct SessionSetupRunTests {
         #expect(h.backend.calls == [.sweep(keeping: []), .fix(.serviceStopped), .preflight, .fix(.imageMissing), .preflight])
     }
 
+    @Test func aWindowRunFetchesTheKernelBetweenTheServiceAndTheBuild() async {
+        let h = Harness()
+        h.backend.queuePreflight(.issue(.kernelMissing), .issue(.imageMissing))
+        #expect(await h.controller.runSetup(.serviceStopped, continuing: true) == .ready)
+        #expect(h.backend.calls == [.sweep(keeping: []), .fix(.serviceStopped), .preflight, .fix(.kernelMissing), .preflight,
+                                    .fix(.imageMissing), .preflight])
+    }
+
+    @Test func aKernelThatStaysMissingIsReportedOnce() async {
+        let h = Harness()
+        h.backend.queuePreflight(.issue(.kernelMissing))
+        #expect(await h.controller.runSetup(.kernelMissing, continuing: true)
+                == .failed(.kernelMissing, SessionController.stillBrokenMessage))
+        #expect(h.backend.calls.filter { $0 == .fix(.kernelMissing) }.count == 1)
+    }
+
     @Test func aWindowRunStartsFolded() async {
         let h = Harness()
         h.backend.hold(.fix)
@@ -77,6 +93,22 @@ struct SessionSetupRunTests {
         #expect(await h.controller.checkSetup() == .needs(.imageMissing))
         #expect(h.state == .idle)
         #expect(h.backend.calls == [.sweep(keeping: []), .preflight, .fix(.serviceStopped), .preflight])
+    }
+
+    @Test func checkingNeverDownloadsTheKernel() async {
+        let h = Harness()
+        h.backend.queuePreflight(.issue(.serviceStopped), .issue(.kernelMissing))
+        #expect(await h.controller.checkSetup() == .needs(.kernelMissing))
+        #expect(h.state == .idle)
+        #expect(h.backend.calls == [.sweep(keeping: []), .preflight, .fix(.serviceStopped), .preflight])
+    }
+
+    @Test func setupErrorsReadAsSentences() {
+        let timedOut = SessionController.message(for: CLIRunner.Failure.timedOut(["system", "start"]))
+        #expect(timedOut == "The container runtime stopped responding. Try again.")
+        #expect(SessionController.message(for: CLIRunner.Failure.notInstalled) == "Apple's container runtime isn't installed.")
+        #expect(SessionController.message(for: CLIRunner.Failure.launchFailed("denied"))
+                == "Couldn't run the container runtime: denied")
     }
 
     @Test func checkingOpensALinkACardWasHolding() async {

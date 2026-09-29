@@ -270,6 +270,15 @@ struct SessionSetupTests {
                                     .start("knotchy-00000002")])
     }
 
+    @Test func aLinkFetchesAMissingKernelAfterStartingTheService() async {
+        let h = Harness()
+        h.backend.queuePreflight(.issue(.serviceStopped), .issue(.kernelMissing))
+        h.controller.open(Harness.url)
+        await waitUntil("loading") { h.state == .starting(.loading, folded: false) }
+        #expect(h.backend.calls == [.sweep(keeping: []), .preflight, .fix(.serviceStopped), .preflight,
+                                    .fix(.kernelMissing), .preflight, .start("knotchy-00000003")])
+    }
+
     @Test func aServiceThatWontStayUpShowsItsCardOnce() async {
         let h = Harness()
         h.backend.queuePreflight(.issue(.serviceStopped), .issue(.serviceStopped))

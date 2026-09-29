@@ -205,7 +205,8 @@ struct SessionSummary {
         switch issue {
         case .cliMissing: "Installing the container runtime…"
         case .cliOutdated: "Updating the container runtime…"
-        case .serviceStopped, .kernelMissing: "Starting the container runtime…"
+        case .serviceStopped: "Starting the container runtime…"
+        case .kernelMissing: "Downloading the Linux kernel…"
         default: "Building the VM…"
         }
     }

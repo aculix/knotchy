@@ -17,8 +17,10 @@ public final class SetupFlow {
         case update
     }
 
-    public static let requiredFreeBytes: Int64 = 3_000_000_000
+    /// The build peaks at about 9 GB: the builder alone takes 4 GB until it is deleted. About 5 GB stays in use.
+    public static let requiredFreeBytes: Int64 = 10_000_000_000
     static let vmDetail = "About 3 minutes · downloads about 225 MB"
+    static let kernelDownloading = "Downloading the Linux kernel…"
 
     public private(set) var mac: Status = .pending("Checking…")
     public private(set) var unsupported: Unsupported?
@@ -51,10 +53,11 @@ public final class SetupFlow {
 
     /// With the controller's live progress on top, so a setup the notch started shows here too.
     public var runtime: Status {
-        if case .settingUp(let issue) = driver.state, issue == .serviceStopped || issue == .kernelMissing {
-            return .running("Starting the runtime…", fraction: nil)
+        switch driver.state {
+        case .settingUp(.serviceStopped): return .running("Starting the runtime…", fraction: nil)
+        case .settingUp(.kernelMissing): return .running(driver.setupLog ?? Self.kernelDownloading, fraction: nil)
+        default: return runtimeBase
         }
-        return runtimeBase
     }
 
     public var vm: Status {
@@ -142,6 +145,9 @@ public final class SetupFlow {
             switch await driver.checkSetup() {
             case .ready?: vmBase = .done("Ready")
             case .needs(let issue)? where Self.isImageIssue(issue): vmBase = .pending(Self.vmDetail)
+            case .needs(.kernelMissing)?:
+                runtimeBase = .pending(Self.kernelDetail(version))
+                vmBase = .pending(Self.vmDetail)
             case .failed(let issue, let message)?: fail(issue, message)
             case nil where Self.isBrowserOpen(driver.state): vmBase = .done("Ready")   // A running VM has an image.
             case .needs?, nil: break   // Busy, or the runtime row's business: the live rows show it.
@@ -264,7 +270,7 @@ public final class SetupFlow {
                 continue
             }
             switch checked {
-            case .needs(let issue) where Self.isImageIssue(issue):
+            case .needs(let issue) where Self.isImageIssue(issue) || issue == .kernelMissing:
                 guard let result = await driver.runSetup(issue, continuing: true) else { continue }
                 return apply(result)
             case .needs:
@@ -279,12 +285,23 @@ public final class SetupFlow {
     private func apply(_ outcome: SetupRunOutcome) {
         switch outcome {
         case .ready:
+            kernelInstalled()
             vmBase = .done("Ready")
         case .needs(let issue):
-            if Self.isImageIssue(issue) { vmBase = .pending(Self.vmDetail) }
+            if Self.isImageIssue(issue) {
+                kernelInstalled()
+                vmBase = .pending(Self.vmDetail)
+            }
         case .failed(let issue, let message):
+            if Self.isImageIssue(issue) { kernelInstalled() }
             fail(issue, message)
         }
+    }
+
+    /// The run got past the kernel, so a row still waiting for it is done.
+    private func kernelInstalled() {
+        guard case .pending = runtimeBase, runtimeAction == nil, case .current(let version)? = runtimeStatus else { return }
+        runtimeBase = .done(Self.installedText(version))
     }
 
     private func fail(_ issue: SetupIssue, _ message: String) {
@@ -309,7 +326,7 @@ public final class SetupFlow {
         guard let facts else { return }
         let free = facts.bytesFree.map { "\(Self.gigabytes($0)) GB free" }
         if needsSpace, let bytes = facts.bytesFree, bytes < Self.requiredFreeBytes {
-            mac = .failed("Setting up needs about 3 GB free. \(Self.gigabytes(bytes)) GB is free.", details: [])
+            mac = .failed("Setting up needs about 10 GB free. \(Self.gigabytes(bytes)) GB is free.", details: [])
         } else {
             mac = .done([facts.osVersion, free].compactMap { $0 }.joined(separator: " · "))
         }
@@ -325,11 +342,15 @@ public final class SetupFlow {
     // MARK: - Text
 
     static func installDetail(_ release: ContainerRuntime.Release) -> String {
-        "Apple's container \(release.version) · \(megabytes(release.size)) MB · installs with Apple's Installer"
+        "Apple's container \(release.version) · \(megabytes(release.size)) MB, then a 700 MB Linux kernel · installs with Apple's Installer"
     }
 
     static func installedText(_ version: String?) -> String {
         version.map { "container \($0) installed" } ?? "container installed"
+    }
+
+    static func kernelDetail(_ version: String?) -> String {
+        "\(installedText(version)) · still needs its Linux kernel (700 MB)"
     }
 
     static func downloadText(_ bytes: Int64, of total: Int64) -> String {

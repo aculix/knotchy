@@ -158,6 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitting = true
         setupFlow.cancel()
         if setupFlow.isDownloading { SystemRuntimeInstaller.removeLeftovers() }
+        if controller.state == .settingUp(.kernelMissing) { ContainerCLIBackend.removeKernelDownloads() }
         // Not Now mid-build closes the window before the build ends.
         if setupFlow.allRequiredDone { UserDefaults.standard.set(true, forKey: SetupLaunchRule.completedKey) }
         // Synchronous on purpose: terminate: often runs inside a non-reentrant main-queue block; awaiting here deadlocked.

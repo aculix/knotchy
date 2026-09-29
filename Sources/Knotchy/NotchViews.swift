@@ -553,7 +553,8 @@ private enum Setup {
     static func symbol(_ issue: SetupIssue) -> String {
         switch issue {
         case .cliMissing, .cliOutdated: "shippingbox"
-        case .serviceStopped, .kernelMissing: "power"
+        case .serviceStopped: "power"
+        case .kernelMissing: "arrow.down.circle"
         case .imageMissing, .imageOutdated: "square.and.arrow.down"
         case .imageStale: "arrow.triangle.2.circlepath"
         case .lowDisk: "internaldrive"
@@ -564,7 +565,8 @@ private enum Setup {
         switch issue {
         case .cliMissing: "Knotchy needs Apple's container runtime"
         case .cliOutdated: "Knotchy needs a newer container runtime"
-        case .serviceStopped, .kernelMissing: "The container service isn't running"
+        case .serviceStopped: "The container service isn't running"
+        case .kernelMissing: "The container runtime needs its Linux kernel"
         case .imageMissing, .imageOutdated: "The browser VM image needs to be built"
         case .imageStale: "Updating the browser VM"
         case .lowDisk: "Not enough disk space"
@@ -575,7 +577,8 @@ private enum Setup {
         switch issue {
         case .cliMissing: "Installing the container runtime…"
         case .cliOutdated: "Updating the container runtime…"
-        case .serviceStopped, .kernelMissing: "Starting the container runtime…"
+        case .serviceStopped: "Starting the container runtime…"
+        case .kernelMissing: "Setting up the container runtime…"
         default: title(issue)
         }
     }
@@ -584,7 +587,8 @@ private enum Setup {
         switch issue {
         case .cliMissing: "Set it up in one step; the link opens when it's done."
         case .cliOutdated: "Update it in one step; the link opens when it's done."
-        case .serviceStopped, .kernelMissing: "Start it to run the isolated browser."
+        case .serviceStopped: "Start it to run the isolated browser."
+        case .kernelMissing: "It's a 700 MB download. The link opens when it's done."
         case .imageMissing, .imageOutdated: "This takes about 3 minutes and downloads about 225 MB."
         case .imageStale: "Rebuilding gets the latest WebKit security fixes."
         case .lowDisk(let free): "Only \(free / 1_000_000_000) GB free; a session needs about 2 GB."
@@ -594,7 +598,8 @@ private enum Setup {
     static func action(_ issue: SetupIssue) -> String? {
         switch issue {
         case .cliMissing, .cliOutdated: "Set Up…"
-        case .serviceStopped, .kernelMissing: "Start Service"
+        case .serviceStopped: "Start Service"
+        case .kernelMissing: "Download"
         case .imageMissing, .imageOutdated: "Build Image"
         case .imageStale: "Update Now"
         case .lowDisk: nil

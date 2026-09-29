@@ -28,7 +28,7 @@ struct SetupFlowTests {
         let flow = makeFlow()
         await flow.refresh()
         #expect(flow.runtimeAction == .install)
-        #expect(flow.runtime == .pending("Apple's container 1.4.1 · 118 MB · installs with Apple's Installer"))
+        #expect(flow.runtime == .pending("Apple's container 1.4.1 · 118 MB, then a 700 MB Linux kernel · installs with Apple's Installer"))
         #expect(flow.vm == .pending("About 3 minutes · downloads about 225 MB"))
         #expect(flow.canSetUp)
         #expect(driver.calls == ["runtimeStatus"])
@@ -56,7 +56,7 @@ struct SetupFlowTests {
         driver.runtimeStatuses = [.missing]
         let flow = makeFlow()
         await flow.refresh()
-        #expect(flow.mac == .failed("Setting up needs about 3 GB free. 2.5 GB is free.", details: []))
+        #expect(flow.mac == .failed("Setting up needs about 10 GB free. 2.5 GB is free.", details: []))
         #expect(!flow.canSetUp)
 
         driver.runtimeStatuses = [.current("1.4.1")]
@@ -190,6 +190,36 @@ struct SetupFlowTests {
         #expect(!driver.calls.contains { $0.hasPrefix("runSetup") })
     }
 
+    @Test func aMissingKernelWaitsForSetUp() async {
+        driver.checkResults = [.needs(.kernelMissing)]
+        let flow = makeFlow()
+        await flow.refresh()
+        #expect(flow.runtime == .pending("container 1.4.1 installed · still needs its Linux kernel (700 MB)"))
+        #expect(flow.vm == .pending("About 3 minutes · downloads about 225 MB"))
+        #expect(flow.canSetUp)
+        #expect(!driver.calls.contains { $0.hasPrefix("runSetup") })
+    }
+
+    @Test func setUpFetchesAMissingKernelThenBuilds() async {
+        driver.checkResults = [.needs(.kernelMissing), .needs(.kernelMissing)]
+        let flow = makeFlow()
+        await flow.setUp()
+        #expect(driver.calls.contains("runSetup(kernelMissing, continuing: true)"))
+        #expect(flow.runtime == .done("container 1.4.1 installed"))
+        #expect(flow.vm == .done("Ready"))
+    }
+
+    @Test func aFailedKernelDownloadShowsInTheRuntimeRow() async {
+        driver.checkResults = [.needs(.kernelMissing), .needs(.kernelMissing)]
+        driver.runResults = [.failed(.kernelMissing, "Couldn't download the Linux kernel. Check your connection and try again.")]
+        driver.setupOutput = ["Downloading the Linux kernel… 212 of 697 MB"]
+        let flow = makeFlow()
+        await flow.setUp()
+        #expect(flow.runtime == .failed("Couldn't download the Linux kernel. Check your connection and try again.",
+                                        details: ["Downloading the Linux kernel… 212 of 697 MB"]))
+        #expect(flow.vm == .pending("About 3 minutes · downloads about 225 MB"))
+    }
+
     @Test func aBuildFailureShowsItsOutput() async {
         driver.checkResults = [.needs(.imageMissing), .needs(.imageMissing)]
         driver.runResults = [.failed(.imageMissing, "The image build failed: out of space")]
@@ -215,7 +245,12 @@ struct SetupFlowTests {
         driver.setupLog = "Step 3/9"
         #expect(flow.vm == .running("Step 3/9", fraction: nil))
         driver.state = .settingUp(.serviceStopped)
+        driver.setupLog = nil
         #expect(flow.runtime == .running("Starting the runtime…", fraction: nil))
+        driver.state = .settingUp(.kernelMissing)
+        #expect(flow.runtime == .running("Downloading the Linux kernel…", fraction: nil))
+        driver.setupLog = "Downloading the Linux kernel… 212 of 697 MB"
+        #expect(flow.runtime == .running("Downloading the Linux kernel… 212 of 697 MB", fraction: nil))
     }
 
     @Test func anOpenBrowserCountsAsAReadyVM() async {
